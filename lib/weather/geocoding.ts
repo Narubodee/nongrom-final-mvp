@@ -1,4 +1,5 @@
 import type { GeocodedLocation } from "@/types/weather";
+import { resolveThaiProvince } from "./thaiProvinces";
 
 interface OpenMeteoGeocodingResult {
   name: string;
@@ -53,9 +54,27 @@ async function search(query: string, language: "th" | "en"): Promise<OpenMeteoGe
   }
 }
 
+function selectThailandResult(results: OpenMeteoGeocodingResult[]): OpenMeteoGeocodingResult | undefined {
+  return results.find((item) => item.country_code === "TH");
+}
+
 export async function geocodeLocation(query: string): Promise<GeocodedLocation> {
   let results = await search(query, "th");
   if (results.length === 0) results = await search(query, "en");
+
+  let resolvedThaiProvinceName: string | undefined;
+  if (results.length === 0) {
+    const thaiProvince = resolveThaiProvince(query);
+    if (thaiProvince) {
+      const fallbackResults = await search(thaiProvince.geocodingName, "en");
+      const thailandResult = selectThailandResult(fallbackResults);
+      if (thailandResult) {
+        results = [thailandResult];
+        resolvedThaiProvinceName = thaiProvince.thaiName;
+      }
+    }
+  }
+
   if (results.length === 0) throw new LocationNotFoundError(query);
 
   const first = results[0];
@@ -69,7 +88,7 @@ export async function geocodeLocation(query: string): Promise<GeocodedLocation> 
 
   return {
     query,
-    name: first.name,
+    name: resolvedThaiProvinceName ?? first.name,
     admin1: first.admin1,
     country: first.country ?? "Unknown",
     countryCode: first.country_code,
