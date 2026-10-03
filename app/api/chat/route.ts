@@ -7,6 +7,7 @@ import { emptyConversationContext, mergeConversationContext } from "@/lib/conver
 import { validateResolvedContext } from "@/lib/conversation/resolver";
 import { resolveDate, timeRangeLabels } from "@/lib/date-time/resolver";
 import { AmbiguousLocationError, GeocodingServiceError, LocationNotFoundError, geocodeLocation } from "@/lib/weather/geocoding";
+import { recoverThaiProvinceLocations } from "@/lib/weather/thaiProvinces";
 import { WeatherServiceError, fetchWeather } from "@/lib/weather/openMeteo";
 import { ForecastUnavailableError, normalizeWeather } from "@/lib/weather/normalize";
 import { compareWeather, makeRecommendation } from "@/lib/recommendations/rules";
@@ -33,7 +34,13 @@ export async function POST(request: Request) {
     const previousContext = body.context ?? emptyConversationContext;
 
     const parsed = await interpretWeatherQuery(body.message, previousContext);
-    const context = mergeConversationContext(previousContext, parsed);
+    const recoveredLocations = parsed.locations.length === 0
+      ? recoverThaiProvinceLocations(body.message)
+      : [];
+    const parsedWithRecoveredLocations = recoveredLocations.length > 0
+      ? { ...parsed, locations: recoveredLocations }
+      : parsed;
+    const context = mergeConversationContext(previousContext, parsedWithRecoveredLocations);
     const validation = validateResolvedContext(context);
 
     if (!validation.ok) {
@@ -90,9 +97,6 @@ export async function POST(request: Request) {
 
     let message: string;
     if (comparison) {
-      // Comparison facts and canonical location names are already deterministic.
-      // Keep the final comparison at application level so verified entity names cannot
-      // be shortened or mutated by response generation.
       message = buildVerifiedComparisonResponse(comparison, body.message);
     } else {
       try {
