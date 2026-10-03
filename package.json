@@ -9,7 +9,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:geocoding:failed": "node scripts/geocoding-regression.mjs failed",
+    "test:geocoding:77": "node scripts/geocoding-regression.mjs all",
+    "test:provinces:failed": "node scripts/province-chat-regression.mjs failed",
+    "test:provinces:77": "node scripts/province-chat-regression.mjs all",
+    "test:provinces:retry": "node scripts/province-chat-regression.mjs retry",
+    "test:core": "node scripts/core-regression.mjs"
   },
   "dependencies": {
     "@google/genai": "2.24.0",
